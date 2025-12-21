@@ -1,15 +1,11 @@
 {
   "name": "coffre-bot",
   "version": "1.0.0",
-  "description": "Bot Discord de gestion de coffre",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1"
-  },
-  "engines": {
-    "node": ">=16.x"
   }
 }

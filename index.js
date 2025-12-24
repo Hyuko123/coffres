@@ -131,17 +131,21 @@ client.on("messageCreate", async message => {
   }
 
   // ================= GIVEAWAY =================
-  if (command === "giveaway") {
-    const duration = ms(args[0]);
-    const reward = args.slice(1).join(" ");
+// ================= GIVEAWAY =================
+if (command === "giveaway") {
+  const duration = ms(args[0]);
+  const reward = args.slice(1).join(" ");
 
-    if (!duration || !reward) {
-      return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
-    }
+  if (!duration || !reward) {
+    return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
+  }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎉 GIVEAWAY SUNDAY 🎉")
-      .setDescription(`
+  // Supprime le message de commande
+  await message.delete().catch(() => {});
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎉 GIVEAWAY SUNDAY 🎉")
+    .setDescription(`
 🎁 **Récompense**
 > **${reward}**
 
@@ -150,33 +154,47 @@ client.on("messageCreate", async message => {
 
 👥 Réagis avec 🎉 pour participer !
 `)
-      .setColor(0xff0000)
-      .setTimestamp(Date.now() + duration);
+    .setColor(0xff0000)
+    .setTimestamp(Date.now() + duration);
 
-    const msg = await message.channel.send({ embeds: [embed] });
-    await msg.react("🎉");
+  const msg = await message.channel.send({ embeds: [embed] });
+  await msg.react("🎉");
 
-    setTimeout(async () => {
-      const reaction = msg.reactions.cache.get("🎉");
-      if (!reaction) return;
+  setTimeout(async () => {
+    const reaction = msg.reactions.cache.get("🎉");
+    if (!reaction) return;
 
-      const users = (await reaction.users.fetch()).filter(u => !u.bot);
-      if (!users.size) return message.channel.send("❌ Aucun participant.");
+    const users = (await reaction.users.fetch()).filter(u => !u.bot);
+    if (!users.size) return message.channel.send("❌ Aucun participant.");
 
-      const winner = users.random();
-      message.channel.send(`🏆 **FÉLICITATIONS ${winner} !** Tu gagnes **${reward}**`);
-    }, duration);
-  }
+    const winner = users.random();
+    message.channel.send(`🏆 **FÉLICITATIONS ${winner} !** Tu gagnes **${reward}**`);
+  }, duration);
+}
+
 
   // ================= ANNONCE =================
-  if (command === "annonce") {
-    const embed = new EmbedBuilder()
-      .setTitle("📢 Annonce SunDay")
-      .setDescription(args.join(" "))
-      .setColor(0xff0000);
+ // ================= ANNONCE =================
+if (command === "annonce") {
+  const texte = args.join(" ");
+  if (!texte) return;
 
-    return message.channel.send({ embeds: [embed] });
-  }
+  // Supprime le message de commande
+  await message.delete().catch(() => {});
+
+  const embed = new EmbedBuilder()
+    .setTitle("📢 Annonce SunDay")
+    .setDescription(`
+━━━━━━━━━━━━━━━━━━
+${texte}
+━━━━━━━━━━━━━━━━━━
+`)
+    .setColor(0xff0000)
+    .setThumbnail(message.guild.iconURL({ dynamic: true }))
+    .setTimestamp();
+
+  return message.channel.send({ embeds: [embed] });
+}
 
   // ================= MUSIQUE =================
   if (command === "play") {
@@ -274,3 +292,4 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+

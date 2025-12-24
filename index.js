@@ -1,6 +1,5 @@
 // ================= CONFIG =================
 const PREFIX = "+";
-
 const STAFF_ROLE_ID = "1453489095493025904";
 const TICKET_CATEGORY_ID = "1453488744744227007";
 
@@ -15,7 +14,12 @@ const {
   EmbedBuilder
 } = require("discord.js");
 
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource
+} = require("@discordjs/voice");
+
 const play = require("play-dl");
 const ms = require("ms");
 const transcripts = require("discord-html-transcripts");
@@ -32,8 +36,8 @@ const client = new Client({
 });
 
 // ================= MUSIQUE =================
-let musicPlayer;
-let voiceConnection;
+let musicPlayer = null;
+let voiceConnection = null;
 
 // ================= READY =================
 client.once("ready", () => {
@@ -41,7 +45,7 @@ client.once("ready", () => {
   client.user.setActivity("PvP Faction 🔥", { type: 3 });
 });
 
-// ================= MESSAGE =================
+// ================= COMMANDES =================
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
@@ -59,25 +63,21 @@ client.on("messageCreate", async message => {
     );
 
     const embed = new EmbedBuilder()
-      .setTitle("🎟️ SunDay Faction – Système de Tickets 🎟️")
-      .setDescription(
-`👋 Bienvenue chez **SunDay** !
+      .setTitle("🎟️ SunDay Faction – Système de Tickets")
+      .setDescription(`
+👋 Bienvenue chez **SunDay** !
 
-Ce système de tickets te permet de contacter le staff pour toute demande.
+📌 **Types de tickets :**
+❓ Question / Information  
+🤝 Partenariat  
+⚔️ Recrutement  
+📩 Autre demande  
 
-📌 **Types de tickets disponibles :**
-❓ Question / Information
-🤝 Partenariat
-⚔️ Recrutement
-📩 Autre demande
-
-📝 Merci d’indiquer une description claire et détaillée.
-
-🔥 **SunDay Faction – Sérieux, organisation et domination.**`
-      )
+🔥 **Merci de décrire clairement ta demande.**
+`)
       .setColor(0xff0000);
 
-    message.channel.send({ embeds: [embed], components: [row] });
+    return message.channel.send({ embeds: [embed], components: [row] });
   }
 
   // ================= COMMANDES TICKET =================
@@ -99,12 +99,12 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
         });
       }
 
-      message.channel.delete();
+      return message.channel.delete();
     }
 
     // RENAME
     if (command === "rename" && args[0]) {
-      message.channel.setName(`ticket-${args[0]}`);
+      return message.channel.setName(`ticket-${args[0]}`);
     }
 
     // ADD
@@ -117,7 +117,7 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
         SendMessages: true
       });
 
-      message.channel.send(`➕ ${member} ajouté au ticket.`);
+      return message.channel.send(`➕ ${member} ajouté au ticket.`);
     }
 
     // REMOVE
@@ -126,56 +126,47 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       if (!member) return;
 
       await message.channel.permissionOverwrites.delete(member.id);
-      message.channel.send(`➖ ${member} retiré du ticket.`);
+      return message.channel.send(`➖ ${member} retiré du ticket.`);
     }
   }
 
   // ================= GIVEAWAY =================
   if (command === "giveaway") {
-  const duration = ms(args[0]);
-  const reward = args.slice(1).join(" ");
+    const duration = ms(args[0]);
+    const reward = args.slice(1).join(" ");
 
-  if (!duration || !reward) {
-    return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
-  }
-
-  const endTime = Date.now() + duration;
-
-  const embed = new EmbedBuilder()
-    .setTitle("🎉🎉 GIVEAWAY SUNDAY 🎉🎉")
-    .setDescription(
-`🎁 **RÉCOMPENSE**
-> **${reward}**
-
-⏰ **Fin dans :**
-> ${args[0]}
-
-👥 **Participants :**
-> Réagis avec 🎉 pour participer !
-
-🔥 **SunDay Faction – Bonne chance à tous !**`
-    )
-    .setColor(0xff0000)
-    .setThumbnail(message.guild.iconURL({ dynamic: true }))
-    .setFooter({ text: "SunDay Giveaway System" })
-    .setTimestamp(endTime);
-
-  const msg = await message.channel.send({ embeds: [embed] });
-  await msg.react("🎉");
-
-  setTimeout(async () => {
-    const reaction = msg.reactions.cache.get("🎉");
-    if (!reaction) return;
-
-    const users = (await reaction.users.fetch()).filter(u => !u.bot);
-    if (!users.size) {
-      return message.channel.send("❌ Aucun participant.");
+    if (!duration || !reward) {
+      return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
     }
 
-    const winner = users.random();
-    message.channel.send(`🏆 **FÉLICITATIONS ${winner} !**\n🎁 Tu remportes **${reward}**`);
-  }, duration);
-}
+    const embed = new EmbedBuilder()
+      .setTitle("🎉 GIVEAWAY SUNDAY 🎉")
+      .setDescription(`
+🎁 **Récompense**
+> **${reward}**
+
+⏰ **Fin dans**
+> ${args[0]}
+
+👥 Réagis avec 🎉 pour participer !
+`)
+      .setColor(0xff0000)
+      .setTimestamp(Date.now() + duration);
+
+    const msg = await message.channel.send({ embeds: [embed] });
+    await msg.react("🎉");
+
+    setTimeout(async () => {
+      const reaction = msg.reactions.cache.get("🎉");
+      if (!reaction) return;
+
+      const users = (await reaction.users.fetch()).filter(u => !u.bot);
+      if (!users.size) return message.channel.send("❌ Aucun participant.");
+
+      const winner = users.random();
+      message.channel.send(`🏆 **FÉLICITATIONS ${winner} !** Tu gagnes **${reward}**`);
+    }, duration);
+  }
 
   // ================= ANNONCE =================
   if (command === "annonce") {
@@ -184,64 +175,45 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       .setDescription(args.join(" "))
       .setColor(0xff0000);
 
-    message.channel.send({ embeds: [embed] });
+    return message.channel.send({ embeds: [embed] });
   }
 
   // ================= MUSIQUE =================
- if (command === "play") {
-  if (!message.member.voice.channel) {
-    return message.reply("❌ Tu dois être en vocal.");
-  }
+  if (command === "play") {
+    if (!message.member.voice.channel)
+      return message.reply("❌ Tu dois être en vocal.");
 
-  if (!args[0]) {
-    return message.reply("❌ Mets un lien YouTube.");
-  }
+    const stream = await play.stream(args[0]);
+    const resource = createAudioResource(stream.stream, {
+      inputType: stream.type
+    });
 
-  const stream = await play.stream(args[0]);
+    musicPlayer = createAudioPlayer();
+    musicPlayer.play(resource);
 
-  const resource = createAudioResource(stream.stream, {
-    inputType: stream.type
-  });
+    voiceConnection = joinVoiceChannel({
+      channelId: message.member.voice.channel.id,
+      guildId: message.guild.id,
+      adapterCreator: message.guild.voiceAdapterCreator
+    });
 
-  musicPlayer = createAudioPlayer();
-  musicPlayer.play(resource);
-
-  voiceConnection = joinVoiceChannel({
-    channelId: message.member.voice.channel.id,
-    guildId: message.guild.id,
-    adapterCreator: message.guild.voiceAdapterCreator
-  });
-
-  voiceConnection.subscribe(musicPlayer);
-
-  message.reply("🎵 **Musique lancée !**");
-}
-
+    voiceConnection.subscribe(musicPlayer);
+    return message.reply("🎵 Musique lancée !");
   }
 
   if (command === "stop") {
-  if (!musicPlayer || !voiceConnection) {
-    return message.reply("❌ Aucune musique en cours.");
+    if (!musicPlayer) return message.reply("❌ Aucune musique.");
+    musicPlayer.stop();
+    voiceConnection.destroy();
+    musicPlayer = null;
+    voiceConnection = null;
+    return message.reply("⏹ Musique arrêtée.");
   }
 
-  musicPlayer.stop();
-  voiceConnection.destroy();
-
-  musicPlayer = null;
-  voiceConnection = null;
-
-  message.reply("⏹ **Musique arrêtée et bot déconnecté du vocal.**");
-}
-
- if (command === "skip") {
-  if (!musicPlayer) {
-    return message.reply("❌ Aucune musique.");
-  }
-
-  musicPlayer.stop();
-  message.reply("⏭ **Musique passée.**");
-}
-
+  if (command === "skip") {
+    if (!musicPlayer) return message.reply("❌ Aucune musique.");
+    musicPlayer.stop();
+    return message.reply("⏭ Musique passée.");
   }
 });
 
@@ -287,14 +259,12 @@ client.on("interactionCreate", async interaction => {
     ]
   });
 
-  channel.send(
-`🎫 **NOUVEAU TICKET**
-
+  channel.send(`
+🎫 **NOUVEAU TICKET**
 👤 ${interaction.user}
 
 Merci d’expliquer clairement ta demande.
-🔒 Le staff SunDay va te répondre.`
-  );
+`);
 
   interaction.reply({
     content: `✅ Ton ticket a été créé : ${channel}`,
@@ -304,4 +274,3 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
-

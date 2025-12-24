@@ -169,14 +169,28 @@ client.on("messageCreate", async message => {
   }
 
   // ================= ANNONCE =================
-  if (command === "annonce") {
-    const embed = new EmbedBuilder()
-      .setTitle("📢 Annonce SunDay")
-      .setDescription(args.join(" "))
-      .setColor(0xff0000);
+if (command === "annonce") {
+  const texte = args.join(" ");
+  if (!texte) return message.reply("❌ Tu dois écrire une annonce.");
 
-    return message.channel.send({ embeds: [embed] });
-  }
+  const embed = new EmbedBuilder()
+    .setTitle("📢 Annonce Officielle SunDay")
+    .setDescription(`
+━━━━━━━━━━━━━━━━━━
+${texte}
+━━━━━━━━━━━━━━━━━━
+`)
+    .setColor(0xff0000)
+    .setThumbnail(message.guild.iconURL({ dynamic: true }))
+    .setFooter({
+      text: "SunDay • Annonce officielle",
+      iconURL: message.guild.iconURL({ dynamic: true })
+    })
+    .setTimestamp();
+
+  message.channel.send({ embeds: [embed] });
+}
+
 
   // ================= MUSIQUE =================
   if (command === "play") {
@@ -274,3 +288,4 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+

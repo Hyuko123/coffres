@@ -40,13 +40,7 @@ client.once("ready", () => {
   client.user.setActivity("PvP Faction 🔥", { type: 3 });
 });
 
-// ================= UTILS =================
-function isStaff(member) {
-  if (!member) return false;
-  return member.roles.cache.has(STAFF_ROLE_ID);
-}
-
-// ================= COMMANDES =================
+// ================= MESSAGE =================
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
@@ -56,10 +50,6 @@ client.on("messageCreate", async message => {
 
   // ================= PANEL TICKET =================
   if (command === "ticketpanel") {
-    if (!isStaff(message.member)) {
-      return message.reply("❌ Commande réservée au staff.");
-    }
-
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("open_ticket")
@@ -75,17 +65,12 @@ client.on("messageCreate", async message => {
 Ce système de tickets te permet de contacter le staff pour toute demande.
 
 📌 **Types de tickets disponibles :**
+❓ Question / Information
+🤝 Partenariat
+⚔️ Recrutement
+📩 Autre demande
 
-❓ Question / Information  
-🤝 Partenariat  
-⚔️ Recrutement  
-📩 Autre demande  
-
-📝 **Merci d’indiquer dans ton ticket :**
-• Une description claire et détaillée de ta demande
-
-⏳ Un membre du staff SunDay te répondra dès que possible.  
-🙏 Merci de rester respectueux et patient.
+📝 Merci d’indiquer une description claire et détaillée.
 
 🔥 **SunDay Faction – Sérieux, organisation et domination.**`
       )
@@ -94,9 +79,8 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
     message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // ================= TICKETS =================
+  // ================= COMMANDES TICKET =================
   if (message.channel.name?.startsWith("ticket-")) {
-    if (!isStaff(message.member)) return;
 
     // CLOSE
     if (command === "close") {
@@ -109,7 +93,7 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       if (userId) {
         const user = await client.users.fetch(userId);
         await user.send({
-          content: "📄 Voici le transcript de ton ticket SunDay :",
+          content: "📄 Transcript de ton ticket SunDay",
           files: [attachment]
         });
       }
@@ -147,8 +131,6 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
 
   // ================= GIVEAWAY =================
   if (command === "giveaway") {
-    if (!isStaff(message.member)) return;
-
     const duration = ms(args[0]);
     const reward = args.slice(1).join(" ");
     if (!duration || !reward) {
@@ -179,8 +161,6 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
 
   // ================= ANNONCE =================
   if (command === "annonce") {
-    if (!isStaff(message.member)) return;
-
     const embed = new EmbedBuilder()
       .setTitle("📢 Annonce SunDay")
       .setDescription(args.join(" "))
@@ -248,11 +228,17 @@ client.on("interactionCreate", async interaction => {
       },
       {
         id: interaction.user.id,
-        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages
+        ]
       },
       {
         id: STAFF_ROLE_ID,
-        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages
+        ]
       }
     ]
   });
@@ -274,4 +260,3 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
-

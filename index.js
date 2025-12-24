@@ -1,3 +1,11 @@
+// ================= CONFIG =================
+const TOKEN = process.env.TOKEN;
+const PREFIX = "+";
+
+const TICKET_CATEGORY_ID = "ID_CATEGORIE_TICKET";
+const STAFF_ROLE_ID = "ID_ROLE_STAFF";
+
+// ================= IMPORTS =================
 const {
   Client,
   GatewayIntentBits,
@@ -14,7 +22,6 @@ const ms = require("ms");
 const transcripts = require("discord-html-transcripts");
 
 // ================= CLIENT =================
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -25,18 +32,20 @@ const client = new Client({
 });
 
 // ================= MUSIQUE =================
-
 let musicPlayer;
 
 // ================= READY =================
-
 client.once("ready", () => {
   console.log("🔥 SunDay Bot connecté");
   client.user.setActivity("PvP Faction 🔥", { type: 3 });
 });
 
-// ================= MESSAGE =================
+// ================= UTILS =================
+function isStaff(member) {
+  return member.roles.cache.has(STAFF_ROLE_ID);
+}
 
+// ================= MESSAGE =================
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
@@ -44,9 +53,10 @@ client.on("messageCreate", async message => {
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // ================= PANEL TICKET =================
-
+  // ========= PANEL TICKET =========
   if (command === "ticketpanel") {
+    if (!isStaff(message.member)) return;
+
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("open_ticket")
@@ -55,42 +65,63 @@ client.on("messageCreate", async message => {
     );
 
     const embed = new EmbedBuilder()
-      .setTitle("🎫 Support SunDay")
-      .setDescription("Clique sur le bouton pour ouvrir un ticket PvP Faction")
+      .setTitle("🎟️ **SunDay Faction – Système de Tickets** 🎟️")
+      .setDescription(
+`👋 Bienvenue chez **SunDay** !
+
+Ce système de tickets te permet de contacter le staff pour toute demande.
+
+📌 **Types de tickets disponibles :**
+
+❓ Question / Information  
+🤝 Partenariat  
+⚔️ Recrutement  
+📩 Autre demande  
+
+📝 **Merci d’indiquer dans ton ticket :**
+• Une description claire et détaillée de ta demande
+
+⏳ Un membre du staff SunDay te répondra dès que possible.  
+🙏 Merci de rester respectueux et patient.
+
+🔥 **SunDay Faction – Sérieux, organisation et domination.**`
+      )
       .setColor(0xff0000);
 
     message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // ================= COMMANDES TICKET =================
+  // ========= TICKET COMMANDES =========
+  if (message.channel.name?.startsWith("ticket-")) {
 
-  if (command === "ticket") {
+    if (!isStaff(message.member)) return;
 
     // CLOSE
-    if (args[0] === "close") {
-      if (!message.channel.name.startsWith("ticket-")) return;
-
+    if (command === "close") {
       const attachment = await transcripts.createTranscript(message.channel, {
         limit: -1,
         filename: `${message.channel.name}.html`
       });
 
-      await message.author.send({
-        content: "📄 Transcript de ton ticket SunDay",
-        files: [attachment]
-      });
+      const userId = message.channel.topic;
+      if (userId) {
+        const user = await client.users.fetch(userId);
+        user.send({
+          content: "📄 Transcript de ton ticket SunDay",
+          files: [attachment]
+        });
+      }
 
       message.channel.delete();
     }
 
     // RENAME
-    if (args[0] === "rename") {
-      if (!args[1]) return;
-      message.channel.setName(`ticket-${args[1]}`);
+    if (command === "rename" && args[0]) {
+      message.channel.setName(`ticket-${args[0]}`);
     }
 
-    // ADD USER
-    if (args[0] === "add") {
+    // ADD
+    if (command === "add") {
       const member = message.mentions.members.first();
       if (!member) return;
 
@@ -99,59 +130,49 @@ client.on("messageCreate", async message => {
         SendMessages: true
       });
 
-      message.reply(`✅ ${member.user.username} ajouté au ticket`);
+      message.reply(`➕ ${member.user.username} ajouté au ticket`);
     }
   }
 
-  // ================= GIVEAWAY =================
-
+  // ========= GIVEAWAY =========
   if (command === "giveaway") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+    if (!isStaff(message.member)) return;
 
     const duration = ms(args[0]);
-    const title = args[1];
-    const reward = args.slice(2).join(" ");
-
+    const reward = args.slice(1).join(" ");
     if (!duration || !reward) return;
 
     const embed = new EmbedBuilder()
-      .setTitle(`🎉 GIVEAWAY : ${title}`)
-      .setDescription(`🎁 Récompense : **${reward}**\n⏰ Fin dans : ${args[0]}`)
-      .setColor(0xff0000)
-      .setFooter({ text: "SunDay PvP Faction" });
+      .setTitle("🎉 GIVEAWAY")
+      .setDescription(`🎁 **${reward}**\n⏰ Fin dans : ${args[0]}`)
+      .setColor(0xff0000);
 
     const msg = await message.channel.send({ embeds: [embed] });
     await msg.react("🎉");
 
     setTimeout(async () => {
-      const reaction = msg.reactions.cache.get("🎉");
-      const users = (await reaction.users.fetch()).filter(u => !u.bot);
+      const users = (await msg.reactions.cache.get("🎉").users.fetch()).filter(u => !u.bot);
       const winner = users.random();
 
       message.channel.send(
-        winner
-          ? `🏆 Bravo ${winner} ! Tu gagnes **${reward}**`
-          : "❌ Aucun participant"
+        winner ? `🏆 Bravo ${winner} !` : "❌ Aucun participant"
       );
     }, duration);
   }
 
-  // ================= ANNONCE =================
-
+  // ========= ANNONCE =========
   if (command === "annonce") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
+    if (!isStaff(message.member)) return;
 
     const embed = new EmbedBuilder()
       .setTitle("📢 Annonce SunDay")
       .setDescription(args.join(" "))
-      .setColor(0xff0000)
-      .setFooter({ text: "SunDay PvP Faction" });
+      .setColor(0xff0000);
 
     message.channel.send({ embeds: [embed] });
   }
 
-  // ================= MUSIQUE =================
-
+  // ========= MUSIQUE =========
   if (command === "play") {
     if (!message.member.voice.channel) return;
 
@@ -170,52 +191,73 @@ client.on("messageCreate", async message => {
     message.reply("🎵 Musique lancée");
   }
 
-  if (command === "stop") {
-    if (musicPlayer) musicPlayer.stop();
+  if (command === "stop" && musicPlayer) {
+    musicPlayer.stop();
     message.reply("⏹ Musique arrêtée");
   }
 
-  if (command === "skip") {
-    if (musicPlayer) musicPlayer.stop();
+  if (command === "skip" && musicPlayer) {
+    musicPlayer.stop();
     message.reply("⏭ Musique skip");
   }
 });
 
-// ================= INTERACTIONS BOUTONS =================
-
+// ================= BOUTON TICKET =================
 client.on("interactionCreate", async interaction => {
   if (!interaction.isButton()) return;
+  if (interaction.customId !== "open_ticket") return;
 
-  if (interaction.customId === "open_ticket") {
-    const channel = await interaction.guild.channels.create({
-      name: `ticket-${interaction.user.username}`,
-      parent: TICKET_CATEGORY_ID,
-      permissionOverwrites: [
-        {
-          id: interaction.guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel]
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ]
-        },
-        {
-          id: STAFF_ROLE_ID,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ]
-        }
-      ]
+  const existing = interaction.guild.channels.cache.find(
+    c => c.parentId === TICKET_CATEGORY_ID && c.topic === interaction.user.id
+  );
+
+  if (existing) {
+    return interaction.reply({
+      content: `❌ Tu as déjà un ticket ouvert : ${existing}`,
+      ephemeral: true
     });
-
-    interaction.reply({ content: "🎫 Ticket créé !", ephemeral: true });
   }
+
+  const channel = await interaction.guild.channels.create({
+    name: `ticket-${interaction.user.username}`,
+    parent: TICKET_CATEGORY_ID,
+    topic: interaction.user.id,
+    permissionOverwrites: [
+      {
+        id: interaction.guild.id,
+        deny: [PermissionsBitField.Flags.ViewChannel]
+      },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages
+        ]
+      },
+      {
+        id: STAFF_ROLE_ID,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages
+        ]
+      }
+    ]
+  });
+
+  channel.send(
+`🎫 **NOUVEAU TICKET**
+
+👤 ${interaction.user}
+Merci d’expliquer clairement ta demande.
+
+🔒 Staff SunDay à votre service.`
+  );
+
+  interaction.reply({
+    content: `✅ Ton ticket a été créé : ${channel}`,
+    ephemeral: true
+  });
 });
 
 // ================= LOGIN =================
-
 client.login(process.env.TOKEN);

@@ -17,10 +17,11 @@ const {
 const {
   joinVoiceChannel,
   createAudioPlayer,
-  createAudioResource
+  createAudioResource,
+  AudioPlayerStatus
 } = require("@discordjs/voice");
 
-const play = require("play-dl");
+const ytdl = require("ytdl-core");
 const ms = require("ms");
 const transcripts = require("discord-html-transcripts");
 
@@ -67,13 +68,13 @@ client.on("messageCreate", async message => {
       .setDescription(`
 👋 Bienvenue chez **SunDay** !
 
-📌 **Types de tickets :**
-❓ Question / Information  
-🤝 Partenariat  
-⚔️ Recrutement  
-📩 Autre demande  
+📌 **Types de tickets**
+❓ Question / Information
+🤝 Partenariat
+⚔️ Recrutement
+📩 Autre demande
 
-🔥 **Merci de décrire clairement ta demande.**
+🔥 Merci d’expliquer clairement ta demande.
 `)
       .setColor(0xff0000);
 
@@ -83,7 +84,6 @@ client.on("messageCreate", async message => {
   // ================= COMMANDES TICKET =================
   if (message.channel.name?.startsWith("ticket-")) {
 
-    // CLOSE
     if (command === "close") {
       const attachment = await transcripts.createTranscript(message.channel, {
         limit: -1,
@@ -102,32 +102,49 @@ client.on("messageCreate", async message => {
       return message.channel.delete();
     }
 
-    // RENAME
     if (command === "rename" && args[0]) {
       return message.channel.setName(`ticket-${args[0]}`);
     }
 
-    // ADD
     if (command === "add") {
       const member = message.mentions.members.first();
       if (!member) return;
-
       await message.channel.permissionOverwrites.edit(member.id, {
         ViewChannel: true,
         SendMessages: true
       });
-
       return message.channel.send(`➕ ${member} ajouté au ticket.`);
     }
 
-    // REMOVE
     if (command === "remove") {
       const member = message.mentions.members.first();
       if (!member) return;
-
       await message.channel.permissionOverwrites.delete(member.id);
       return message.channel.send(`➖ ${member} retiré du ticket.`);
     }
+  }
+
+  // ================= ANNONCE =================
+  if (command === "annonce") {
+    const texte = args.join(" ");
+    if (!texte) return message.reply("❌ Tu dois écrire une annonce.");
+
+    const embed = new EmbedBuilder()
+      .setTitle("📢 Annonce Officielle SunDay")
+      .setDescription(`
+━━━━━━━━━━━━━━━━━━
+${texte}
+━━━━━━━━━━━━━━━━━━
+`)
+      .setColor(0xff0000)
+      .setThumbnail(message.guild.iconURL({ dynamic: true }))
+      .setFooter({
+        text: "SunDay • Annonce officielle",
+        iconURL: message.guild.iconURL({ dynamic: true })
+      })
+      .setTimestamp();
+
+    return message.channel.send({ embeds: [embed] });
   }
 
   // ================= GIVEAWAY =================
@@ -135,9 +152,8 @@ client.on("messageCreate", async message => {
     const duration = ms(args[0]);
     const reward = args.slice(1).join(" ");
 
-    if (!duration || !reward) {
+    if (!duration || !reward)
       return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
-    }
 
     const embed = new EmbedBuilder()
       .setTitle("🎉 GIVEAWAY SUNDAY 🎉")
@@ -148,7 +164,7 @@ client.on("messageCreate", async message => {
 ⏰ **Fin dans**
 > ${args[0]}
 
-👥 Réagis avec 🎉 pour participer !
+👥 Réagis avec 🎉
 `)
       .setColor(0xff0000)
       .setTimestamp(Date.now() + duration);
@@ -159,51 +175,21 @@ client.on("messageCreate", async message => {
     setTimeout(async () => {
       const reaction = msg.reactions.cache.get("🎉");
       if (!reaction) return;
-
       const users = (await reaction.users.fetch()).filter(u => !u.bot);
       if (!users.size) return message.channel.send("❌ Aucun participant.");
 
       const winner = users.random();
-      message.channel.send(`🏆 **FÉLICITATIONS ${winner} !** Tu gagnes **${reward}**`);
+      message.channel.send(`🏆 **${winner} remporte ${reward} !**`);
     }, duration);
   }
 
-  // ================= ANNONCE =================
-if (command === "annonce") {
-  const texte = args.join(" ");
-  if (!texte) return message.reply("❌ Tu dois écrire une annonce.");
-
-  const embed = new EmbedBuilder()
-    .setTitle("📢 Annonce Officielle SunDay")
-    .setDescription(`
-━━━━━━━━━━━━━━━━━━
-${texte}
-━━━━━━━━━━━━━━━━━━
-`)
-    .setColor(0xff0000)
-    .setThumbnail(message.guild.iconURL({ dynamic: true }))
-    .setFooter({
-      text: "SunDay • Annonce officielle",
-      iconURL: message.guild.iconURL({ dynamic: true })
-    })
-    .setTimestamp();
-
-  message.channel.send({ embeds: [embed] });
-}
-
-
-  // ================= MUSIQUE =================
+  // ================= MUSIQUE (SOLUTION 2) =================
   if (command === "play") {
     if (!message.member.voice.channel)
       return message.reply("❌ Tu dois être en vocal.");
 
-    const stream = await play.stream(args[0]);
-    const resource = createAudioResource(stream.stream, {
-      inputType: stream.type
-    });
-
-    musicPlayer = createAudioPlayer();
-    musicPlayer.play(resource);
+    if (!args[0] || !ytdl.validateURL(args[0]))
+      return message.reply("❌ Lien YouTube invalide.");
 
     voiceConnection = joinVoiceChannel({
       channelId: message.member.voice.channel.id,
@@ -211,8 +197,18 @@ ${texte}
       adapterCreator: message.guild.voiceAdapterCreator
     });
 
+    const stream = ytdl(args[0], {
+      filter: "audioonly",
+      quality: "highestaudio",
+      highWaterMark: 1 << 25
+    });
+
+    const resource = createAudioResource(stream);
+    musicPlayer = createAudioPlayer();
+    musicPlayer.play(resource);
     voiceConnection.subscribe(musicPlayer);
-    return message.reply("🎵 Musique lancée !");
+
+    return message.reply("🎵 **Musique lancée avec succès !**");
   }
 
   if (command === "stop") {
@@ -288,4 +284,3 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
-

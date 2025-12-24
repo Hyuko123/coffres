@@ -54,17 +54,22 @@ client.on("messageCreate", async message => {
   const command = args.shift().toLowerCase();
 
   // ================= PANEL TICKET =================
-  if (command === "ticketpanel") {
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("open_ticket")
-        .setLabel("🎫 Ouvrir un ticket")
-        .setStyle(ButtonStyle.Primary)
-    );
+// ================= PANEL TICKET =================
+if (command === "ticketpanel") {
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎟️ SunDay Faction – Système de Tickets")
-      .setDescription(`
+  // Supprime le message de commande
+  await message.delete().catch(() => {});
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("open_ticket")
+      .setLabel("🎫 Ouvrir un ticket")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎟️ SunDay Faction – Système de Tickets")
+    .setDescription(`
 👋 Bienvenue chez **SunDay** !
 
 📌 **Types de tickets :**
@@ -75,10 +80,11 @@ client.on("messageCreate", async message => {
 
 🔥 **Merci de décrire clairement ta demande.**
 `)
-      .setColor(0xff0000);
+    .setColor(0xff0000);
 
-    return message.channel.send({ embeds: [embed], components: [row] });
-  }
+  return message.channel.send({ embeds: [embed], components: [row] });
+}
+
 
   // ================= COMMANDES TICKET =================
   if (message.channel.name?.startsWith("ticket-")) {
@@ -292,4 +298,5 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+
 

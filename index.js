@@ -42,7 +42,7 @@ let voiceConnection = null;
 // ================= READY =================
 client.once("ready", () => {
   console.log("🔥 SunDay Bot connecté");
-  client.user.setActivity("PvP Faction 🔥", { type: 3 });
+  client.user.setActivity("Gère le discord SunDay | MC", { type: 3 });
 });
 
 // ================= COMMANDES =================
@@ -298,5 +298,6 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+
 
 

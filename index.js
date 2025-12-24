@@ -33,6 +33,7 @@ const client = new Client({
 
 // ================= MUSIQUE =================
 let musicPlayer;
+let voiceConnection;
 
 // ================= READY =================
 client.once("ready", () => {
@@ -131,33 +132,50 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
 
   // ================= GIVEAWAY =================
   if (command === "giveaway") {
-    const duration = ms(args[0]);
-    const reward = args.slice(1).join(" ");
-    if (!duration || !reward) {
-      return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
+  const duration = ms(args[0]);
+  const reward = args.slice(1).join(" ");
+
+  if (!duration || !reward) {
+    return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
+  }
+
+  const endTime = Date.now() + duration;
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎉🎉 GIVEAWAY SUNDAY 🎉🎉")
+    .setDescription(
+`🎁 **RÉCOMPENSE**
+> **${reward}**
+
+⏰ **Fin dans :**
+> ${args[0]}
+
+👥 **Participants :**
+> Réagis avec 🎉 pour participer !
+
+🔥 **SunDay Faction – Bonne chance à tous !**`
+    )
+    .setColor(0xff0000)
+    .setThumbnail(message.guild.iconURL({ dynamic: true }))
+    .setFooter({ text: "SunDay Giveaway System" })
+    .setTimestamp(endTime);
+
+  const msg = await message.channel.send({ embeds: [embed] });
+  await msg.react("🎉");
+
+  setTimeout(async () => {
+    const reaction = msg.reactions.cache.get("🎉");
+    if (!reaction) return;
+
+    const users = (await reaction.users.fetch()).filter(u => !u.bot);
+    if (!users.size) {
+      return message.channel.send("❌ Aucun participant.");
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎉 GIVEAWAY")
-      .setDescription(`🎁 **${reward}**\n⏰ Fin dans : ${args[0]}`)
-      .setColor(0xff0000);
-
-    const msg = await message.channel.send({ embeds: [embed] });
-    await msg.react("🎉");
-
-    setTimeout(async () => {
-      const reaction = msg.reactions.cache.get("🎉");
-      if (!reaction) return;
-
-      const users = (await reaction.users.fetch()).filter(u => !u.bot);
-      if (!users.size) {
-        return message.channel.send("❌ Aucun participant.");
-      }
-
-      const winner = users.random();
-      message.channel.send(`🏆 Bravo ${winner} ! Tu remportes **${reward}**`);
-    }, duration);
-  }
+    const winner = users.random();
+    message.channel.send(`🏆 **FÉLICITATIONS ${winner} !**\n🎁 Tu remportes **${reward}**`);
+  }, duration);
+}
 
   // ================= ANNONCE =================
   if (command === "annonce") {
@@ -170,34 +188,60 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
   }
 
   // ================= MUSIQUE =================
-  if (command === "play") {
-    if (!message.member.voice.channel) {
-      return message.reply("❌ Tu dois être en vocal.");
-    }
-
-    const stream = await play.stream(args[0]);
-    const resource = createAudioResource(stream.stream);
-
-    musicPlayer = createAudioPlayer();
-    musicPlayer.play(resource);
-
-    joinVoiceChannel({
-      channelId: message.member.voice.channel.id,
-      guildId: message.guild.id,
-      adapterCreator: message.guild.voiceAdapterCreator
-    }).subscribe(musicPlayer);
-
-    message.reply("🎵 Musique lancée !");
+ if (command === "play") {
+  if (!message.member.voice.channel) {
+    return message.reply("❌ Tu dois être en vocal.");
   }
 
-  if (command === "stop" && musicPlayer) {
-    musicPlayer.stop();
-    message.reply("⏹ Musique arrêtée.");
+  if (!args[0]) {
+    return message.reply("❌ Mets un lien YouTube.");
   }
 
-  if (command === "skip" && musicPlayer) {
-    musicPlayer.stop();
-    message.reply("⏭ Musique passée.");
+  const stream = await play.stream(args[0]);
+
+  const resource = createAudioResource(stream.stream, {
+    inputType: stream.type
+  });
+
+  musicPlayer = createAudioPlayer();
+  musicPlayer.play(resource);
+
+  voiceConnection = joinVoiceChannel({
+    channelId: message.member.voice.channel.id,
+    guildId: message.guild.id,
+    adapterCreator: message.guild.voiceAdapterCreator
+  });
+
+  voiceConnection.subscribe(musicPlayer);
+
+  message.reply("🎵 **Musique lancée !**");
+}
+
+  }
+
+  if (command === "stop") {
+  if (!musicPlayer || !voiceConnection) {
+    return message.reply("❌ Aucune musique en cours.");
+  }
+
+  musicPlayer.stop();
+  voiceConnection.destroy();
+
+  musicPlayer = null;
+  voiceConnection = null;
+
+  message.reply("⏹ **Musique arrêtée et bot déconnecté du vocal.**");
+}
+
+ if (command === "skip") {
+  if (!musicPlayer) {
+    return message.reply("❌ Aucune musique.");
+  }
+
+  musicPlayer.stop();
+  message.reply("⏭ **Musique passée.**");
+}
+
   }
 });
 
@@ -260,3 +304,4 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+

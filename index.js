@@ -2,8 +2,8 @@
 const TOKEN = process.env.TOKEN;
 const PREFIX = "+";
 
-const TICKET_CATEGORY_ID = "ID_CATEGORIE_TICKET";
-const STAFF_ROLE_ID = "ID_ROLE_STAFF";
+const TICKET_CATEGORY_ID = "1453488744744227007";
+const STAFF_ROLE_ID = "1453489095493025904";
 
 // ================= IMPORTS =================
 const {
@@ -261,3 +261,4 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
+

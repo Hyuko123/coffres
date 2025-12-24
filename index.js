@@ -1,9 +1,8 @@
 // ================= CONFIG =================
-const TOKEN = process.env.TOKEN;
 const PREFIX = "+";
 
-const TICKET_CATEGORY_ID = "1453488744744227007";
 const STAFF_ROLE_ID = "1453489095493025904";
+const TICKET_CATEGORY_ID = "1453488744744227007";
 
 // ================= IMPORTS =================
 const {
@@ -27,8 +26,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers // 👈 IMPORTANT
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates
   ]
 });
 
@@ -43,10 +42,11 @@ client.once("ready", () => {
 
 // ================= UTILS =================
 function isStaff(member) {
+  if (!member) return false;
   return member.roles.cache.has(STAFF_ROLE_ID);
 }
 
-// ================= MESSAGE =================
+// ================= COMMANDES =================
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
@@ -54,9 +54,11 @@ client.on("messageCreate", async message => {
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // ========= PANEL TICKET =========
+  // ================= PANEL TICKET =================
   if (command === "ticketpanel") {
-    if (!isStaff(message.member)) return;
+    if (!isStaff(message.member)) {
+      return message.reply("❌ Commande réservée au staff.");
+    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -66,7 +68,7 @@ client.on("messageCreate", async message => {
     );
 
     const embed = new EmbedBuilder()
-      .setTitle("🎟️ **SunDay Faction – Système de Tickets** 🎟️")
+      .setTitle("🎟️ SunDay Faction – Système de Tickets 🎟️")
       .setDescription(
 `👋 Bienvenue chez **SunDay** !
 
@@ -92,9 +94,8 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
     message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // ========= TICKET COMMANDES =========
+  // ================= TICKETS =================
   if (message.channel.name?.startsWith("ticket-")) {
-
     if (!isStaff(message.member)) return;
 
     // CLOSE
@@ -107,8 +108,8 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       const userId = message.channel.topic;
       if (userId) {
         const user = await client.users.fetch(userId);
-        user.send({
-          content: "📄 Transcript de ton ticket SunDay",
+        await user.send({
+          content: "📄 Voici le transcript de ton ticket SunDay :",
           files: [attachment]
         });
       }
@@ -126,22 +127,33 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       const member = message.mentions.members.first();
       if (!member) return;
 
-      message.channel.permissionOverwrites.edit(member.id, {
+      await message.channel.permissionOverwrites.edit(member.id, {
         ViewChannel: true,
         SendMessages: true
       });
 
-      message.reply(`➕ ${member.user.username} ajouté au ticket`);
+      message.channel.send(`➕ ${member} ajouté au ticket.`);
+    }
+
+    // REMOVE
+    if (command === "remove") {
+      const member = message.mentions.members.first();
+      if (!member) return;
+
+      await message.channel.permissionOverwrites.delete(member.id);
+      message.channel.send(`➖ ${member} retiré du ticket.`);
     }
   }
 
-  // ========= GIVEAWAY =========
+  // ================= GIVEAWAY =================
   if (command === "giveaway") {
     if (!isStaff(message.member)) return;
 
     const duration = ms(args[0]);
     const reward = args.slice(1).join(" ");
-    if (!duration || !reward) return;
+    if (!duration || !reward) {
+      return message.reply("❌ Utilisation : +giveaway <temps> <récompense>");
+    }
 
     const embed = new EmbedBuilder()
       .setTitle("🎉 GIVEAWAY")
@@ -152,16 +164,20 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
     await msg.react("🎉");
 
     setTimeout(async () => {
-      const users = (await msg.reactions.cache.get("🎉").users.fetch()).filter(u => !u.bot);
-      const winner = users.random();
+      const reaction = msg.reactions.cache.get("🎉");
+      if (!reaction) return;
 
-      message.channel.send(
-        winner ? `🏆 Bravo ${winner} !` : "❌ Aucun participant"
-      );
+      const users = (await reaction.users.fetch()).filter(u => !u.bot);
+      if (!users.size) {
+        return message.channel.send("❌ Aucun participant.");
+      }
+
+      const winner = users.random();
+      message.channel.send(`🏆 Bravo ${winner} ! Tu remportes **${reward}**`);
     }, duration);
   }
 
-  // ========= ANNONCE =========
+  // ================= ANNONCE =================
   if (command === "annonce") {
     if (!isStaff(message.member)) return;
 
@@ -173,9 +189,11 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
     message.channel.send({ embeds: [embed] });
   }
 
-  // ========= MUSIQUE =========
+  // ================= MUSIQUE =================
   if (command === "play") {
-    if (!message.member.voice.channel) return;
+    if (!message.member.voice.channel) {
+      return message.reply("❌ Tu dois être en vocal.");
+    }
 
     const stream = await play.stream(args[0]);
     const resource = createAudioResource(stream.stream);
@@ -189,17 +207,17 @@ Ce système de tickets te permet de contacter le staff pour toute demande.
       adapterCreator: message.guild.voiceAdapterCreator
     }).subscribe(musicPlayer);
 
-    message.reply("🎵 Musique lancée");
+    message.reply("🎵 Musique lancée !");
   }
 
   if (command === "stop" && musicPlayer) {
     musicPlayer.stop();
-    message.reply("⏹ Musique arrêtée");
+    message.reply("⏹ Musique arrêtée.");
   }
 
   if (command === "skip" && musicPlayer) {
     musicPlayer.stop();
-    message.reply("⏭ Musique skip");
+    message.reply("⏭ Musique passée.");
   }
 });
 
@@ -230,17 +248,11 @@ client.on("interactionCreate", async interaction => {
       },
       {
         id: interaction.user.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages
-        ]
+        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
       },
       {
         id: STAFF_ROLE_ID,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages
-        ]
+        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
       }
     ]
   });
@@ -249,9 +261,9 @@ client.on("interactionCreate", async interaction => {
 `🎫 **NOUVEAU TICKET**
 
 👤 ${interaction.user}
-Merci d’expliquer clairement ta demande.
 
-🔒 Staff SunDay à votre service.`
+Merci d’expliquer clairement ta demande.
+🔒 Le staff SunDay va te répondre.`
   );
 
   interaction.reply({
@@ -262,5 +274,3 @@ Merci d’expliquer clairement ta demande.
 
 // ================= LOGIN =================
 client.login(process.env.TOKEN);
-
-
